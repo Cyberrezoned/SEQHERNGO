@@ -7,22 +7,39 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
+import { firestore as adminDb } from '@/lib/firebaseAdmin';
 import type { BlogPost } from '@/lib/types';
 
 
-type Props = {
-  params: { slug: string };
-};
 
 export async function generateStaticParams() {
-    const postsQuery = collection(db, 'blogPosts');
-    const postsSnapshot = await getDocs(postsQuery);
-    return postsSnapshot.docs.map((doc) => ({
-        slug: doc.data().slug,
-    }));
+  if (adminDb) {
+    const snapshot = await adminDb.collection('blogPosts').get();
+    return snapshot.docs.map((d) => ({ slug: d.data().slug }));
+  }
+
+  if (!db) return [];
+
+  const postsQuery = collection(db, 'blogPosts');
+  const postsSnapshot = await getDocs(postsQuery);
+  return postsSnapshot.docs.map((doc) => ({ slug: doc.data().slug }));
 }
 
 async function getPost(slug: string): Promise<BlogPost | null> {
+    if (adminDb) {
+      const snapshot = await adminDb.collection('blogPosts').where('slug', '==', slug).get();
+      if (snapshot.empty) return null;
+      const d = snapshot.docs[0];
+      const data = d.data();
+      return {
+        id: d.id,
+        ...data,
+        createdAt: data.createdAt ? data.createdAt.toDate().toISOString() : null,
+      } as BlogPost;
+    }
+
+    if (!db) return null;
+
     const postsQuery = query(collection(db, 'blogPosts'), where('slug', '==', slug));
     const querySnapshot = await getDocs(postsQuery);
     if (querySnapshot.empty) {

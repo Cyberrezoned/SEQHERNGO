@@ -6,29 +6,37 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { db } from '@/lib/firebase';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
+import { firestore as adminDb } from '@/lib/firebaseAdmin';
 import type { Program } from '@/lib/types';
 
-type Props = {
-  params: { id: string };
-};
 
 export async function generateStaticParams() {
-  const programsCol = collection(db, 'programs');
+  if (adminDb) {
+    const snapshot = await adminDb.collection('programs').get();
+    return snapshot.docs.map((d) => ({ id: d.id }));
+  }
+
+  if (!db) return [];
+
+  const programsCol = collection(db!, 'programs');
   const programSnapshot = await getDocs(programsCol);
-  return programSnapshot.docs.map((doc) => ({
-    id: doc.id,
-  }));
+  return programSnapshot.docs.map((doc) => ({ id: doc.id }));
 }
 
 async function getProgram(id: string): Promise<Program | null> {
-    const docRef = doc(db, 'programs', id);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() } as Program;
-    }
-    return null;
-}
+  if (adminDb) {
+    const d = await adminDb.collection('programs').doc(id).get();
+    if (!d.exists) return null;
+    return { id: d.id, ...(d.data() as Program) };
+  }
 
+  if (!db) return null;
+
+  const programDocRef = doc(db!, 'programs', id);
+  const programSnap = await getDoc(programDocRef);
+  if (!programSnap.exists()) return null;
+  return { id: programSnap.id, ...(programSnap.data() as Program) };
+}
 
 export async function generateMetadata({ params }: Props) {
   const program = await getProgram(params.id);
