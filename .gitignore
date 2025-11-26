@@ -20,6 +20,7 @@
 # production
 /build
 
+
 # misc
 .DS_Store
 *.pem
@@ -30,6 +31,7 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+
 # vercel
 .vercel
 
@@ -38,7 +40,11 @@ yarn-error.log*
 next-env.d.ts
 
 .genkit/*
-.env*
+# Only ignore real env files, not the example
+.env
+.env.local
+.env.development
+.env.production
 
 # firebase
 firebase-debug.log
