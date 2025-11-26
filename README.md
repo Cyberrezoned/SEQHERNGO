@@ -4,31 +4,14 @@ This is a Next.js 14 website for SEQHER, an NGO aligned with the UN's Sustainabl
 
 ## Core Features
 
-- **Homepage**: An overview of the organization, its impact, and calls to action.
-- **Programs**: A browsable list of SEQHER's programs with detailed views.
-- **Donations**: Secure donation processing via Stripe Checkout.
-- **Blog**: A content-rich blog with a full CMS for authorized administrators.
-- **Appointment Booking**: An authenticated form for users to schedule appointments.
-- **Admin Dashboard**: A protected area for managing site content like blog posts.
 
 ## Tech Stack
 
-- **Framework**: Next.js 14 (App Router)
-- **Styling**: Tailwind CSS with shadcn/ui components
-- **Backend**: Firebase (Authentication, Firestore, App Hosting)
-- **Payments**: Stripe
-- **AI**: Google's Genkit for AI-powered features
-- **Deployment**: Firebase App Hosting with GitHub Actions for CI/CD
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js (v20 or later)
-- npm, pnpm, or yarn
-- Firebase CLI (`npm install -g firebase-tools`)
-- A Firebase project
-- A Stripe account
 
 ### 1. Clone the Repository
 
@@ -112,3 +95,37 @@ To deploy manually:
 ```bash
 firebase deploy --only hosting
 ```
+
+## Security Checklist (recommended)
+
+
+### If a secret was accidentally committed (what to do)
+
+If you discover a sensitive file (API keys, service account JSON, `.env` with secrets, private keys) has been committed to this repository, follow these steps immediately:
+
+1. Rotate the exposed secrets right away with the provider (Stripe, Firebase, cloud provider, etc.). Do not rely on removing the file from git alone — rotate the keys.
+
+2. Remove the file from the repository and stop tracking it (example):
+
+```bash
+# Stop tracking the file and remove it from the next commit
+git rm --cached <sensitive-file>
+git commit -m "chore: remove sensitive file from repository"
+git push origin main
+```
+
+3. Add the filename (or a pattern) to `.gitignore` so it's not accidentally recommitted. Example:
+
+```gitignore
+# Ignore local env files and service account JSON
+.env*
+service-account*.json
+```
+
+4. Purge the file from git history (optional but recommended) using a tool like BFG Repo-Cleaner or `git filter-repo`. History rewrite requires force-pushing and coordination with collaborators. If you want help, I can prepare the exact commands.
+
+5. After history rewrite, inform collaborators to re-clone the repository. Also rotate any secrets that may have been exposed.
+
+If you want me to remove a specific sensitive file from the repo (git rm --cached, update .gitignore, and commit), tell me the exact path and I'll do that change for you. I will not rewrite git history without explicit confirmation.
+
+
