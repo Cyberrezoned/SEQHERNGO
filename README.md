@@ -88,9 +88,17 @@ The application will be available at `http://localhost:9002`.
 
 ## Deployment
 
-This project is configured for deployment to Firebase App Hosting. The CI/CD pipeline is managed via GitHub Actions, which will automatically deploy the `main` branch.
+This project can be deployed to Vercel (recommended for Next.js) or Firebase Hosting.
 
-To deploy manually:
+Vercel (recommended)
+
+1. Create a new project on Vercel and connect your GitHub repository.
+2. In the Vercel project settings, add the environment variables shown in `.env.template` (use Vercel's UI to set values for Production/Preview/Development as appropriate).
+3. Vercel will automatically detect Next.js and run the proper build. If you need a `vercel.json` we've included a minimal file in the repo.
+
+Firebase Hosting (existing instructions)
+
+This repo also contains legacy instructions for Firebase Hosting. To deploy to Firebase manually:
 
 ```bash
 firebase deploy --only hosting

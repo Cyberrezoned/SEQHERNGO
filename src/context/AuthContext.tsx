@@ -23,8 +23,9 @@ const AuthContext = createContext<AuthContextType>({
 
 const isFirstUser = async (): Promise<boolean> => {
   // Keep this helper but do NOT auto-promote to admin in production.
-  // Auto-promotion is risky: an attacker who creates the first account
-  // could obtain admin rights. Instead, use a manual migration/claim flow.
+  // If Firestore is not configured, assume this is not the first user to
+  // avoid accidentally granting admin rights during a non-Firebase run.
+  if (!db) return false;
   const usersCollection = collection(db, 'users');
   const userSnapshot = await getDocs(usersCollection);
   return userSnapshot.empty;
@@ -35,57 +36,79 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // If Firebase Auth is not configured, skip subscribing and mark not-loading.
+    if (!auth) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: User | null) => {
-      if (firebaseUser) {
-        const userRef = doc(db, 'users', firebaseUser.uid);
-        
-        // Listen for real-time updates to the user's profile
-        const unsubSnapshot = onSnapshot(userRef, async (docSnap) => {
-      if (docSnap.exists()) {
-        // User profile exists, merge allowed fields with firebase user
-        const userProfile = docSnap.data() as UserProfile;
-        // Only expose a minimal public-facing shape to React context
+      if (!firebaseUser) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      // If Firestore isn't configured, create a minimal public user from the
+      // firebaseUser object and skip profile reads/writes.
+      if (!db) {
         const publicUser: AppUser = {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email ?? userProfile.email,
-          displayName: userProfile.displayName ?? firebaseUser.displayName ?? undefined,
-          role: userProfile.role ?? 'user',
-        };
-        setUser(publicUser);
-      } else {
-        // New user: create a profile but DO NOT auto-promote to admin.
-        // Assign 'user' role by default. Admins should be set via a secure
-        // server-side process or CLI by the project maintainers.
-        const newUserProfile: UserProfile = {
           uid: firebaseUser.uid,
           email: firebaseUser.email ?? undefined,
           displayName: firebaseUser.displayName ?? undefined,
           role: 'user',
         };
-        await setDoc(userRef, newUserProfile);
-        const publicUser: AppUser = {
-          uid: firebaseUser.uid,
-          email: newUserProfile.email,
-          displayName: newUserProfile.displayName,
-          role: newUserProfile.role,
-        };
         setUser(publicUser);
-      }
-            setLoading(false);
-        });
-
-        return () => unsubSnapshot();
-
-      } else {
-        setUser(null);
         setLoading(false);
+        return;
       }
+
+      const userRef = doc(db, 'users', firebaseUser.uid);
+
+      // Listen for real-time updates to the user's profile
+      const unsubSnapshot = onSnapshot(userRef, async (docSnap) => {
+        if (docSnap.exists()) {
+          // User profile exists, merge allowed fields with firebase user
+          const userProfile = docSnap.data() as UserProfile;
+          // Only expose a minimal public-facing shape to React context
+          const publicUser: AppUser = {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email ?? userProfile.email,
+            displayName: userProfile.displayName ?? firebaseUser.displayName ?? undefined,
+            role: userProfile.role ?? 'user',
+          };
+          setUser(publicUser);
+        } else {
+          // New user: create a profile but DO NOT auto-promote to admin.
+          // Assign 'user' role by default. Admins should be set via a secure
+          // server-side process or CLI by the project maintainers.
+          const newUserProfile: UserProfile = {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email ?? undefined,
+            displayName: firebaseUser.displayName ?? undefined,
+            role: 'user',
+          };
+          await setDoc(userRef, newUserProfile);
+          const publicUser: AppUser = {
+            uid: firebaseUser.uid,
+            email: newUserProfile.email,
+            displayName: newUserProfile.displayName,
+            role: newUserProfile.role,
+          };
+          setUser(publicUser);
+        }
+        setLoading(false);
+      });
+
+      return () => unsubSnapshot();
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [auth, db]);
 
   const signOut = async () => {
+    if (!auth) return;
     await firebaseSignOut(auth);
   };
 
