@@ -22,22 +22,37 @@ const firebaseConfig = {
 // import { initializeApp, cert } from 'firebase-admin/app'
 // initializeApp({ credential: cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)) })
 
-// Initialize Firebase
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
-const db = getFirestore(app);
-const functions = getFunctions(app);
+// Initialize Firebase app only once. Many Firebase client SDK functions
+// (notably auth) expect to run in a browser environment. When Next.js does
+// server-side rendering (or builds pages), calling `getAuth()` here can
+// trigger runtime checks and throw if client env vars (apiKey) are missing or
+// invalid. To avoid that, only initialize client-only services when running
+// in the browser.
 
-// Connect to emulators in development
-if (process.env.NODE_ENV === 'development') {
-    // Point to the emulators running on localhost.
-    // Ensure you have the emulators running with `firebase emulators:start`
-    try {
-        connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
-        connectFirestoreEmulator(db, '127.0.0.1', 8080);
-        connectFunctionsEmulator(functions, '127.0.0.1', 5001);
-    } catch (error) {
-        console.error("Error connecting to Firebase emulators. Is `firebase emulators:start` running?", error);
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+
+// Client-only SDK instances. These remain `null` on the server to prevent
+// SSR-time initialization errors. Use the Firebase Admin SDK in server-only
+// code (API routes) for privileged operations.
+let auth: ReturnType<typeof getAuth> | null = null;
+let db: ReturnType<typeof getFirestore> | null = null;
+let functions: ReturnType<typeof getFunctions> | null = null;
+
+if (typeof window !== 'undefined') {
+    // We're in the browser — initialize client SDKs.
+    auth = getAuth(app);
+    db = getFirestore(app);
+    functions = getFunctions(app);
+
+    // Connect to emulators in development (client side)
+    if (process.env.NODE_ENV === 'development') {
+        try {
+            connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+            connectFirestoreEmulator(db, '127.0.0.1', 8080);
+            connectFunctionsEmulator(functions, '127.0.0.1', 5001);
+        } catch (error) {
+            console.error("Error connecting to Firebase emulators. Is `firebase emulators:start` running?", error);
+        }
     }
 }
 
